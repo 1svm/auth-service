@@ -1,0 +1,13 @@
+{
+  "verbose": true,
+  "watch": ["src/"],
+  "ext": "ts,json",
+  "ignore": ["*.test.*", "*.spec.*", "**/fixtures/**"],
+  "execMap": {
+    "ts": "node --no-warnings --loader ts-node/esm"
+  },
+  "env": {
+    "NODE_ENV": "development",
+    "PORT": "8081"
+  }
+}
