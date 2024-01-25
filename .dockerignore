@@ -1,5 +1,9 @@
-.git/
 certstore/
 node_modules/
-dist/
 build/
+dist/
+.git/
+
+*.log
+.gitignore
+.env
