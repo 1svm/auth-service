@@ -5,5 +5,5 @@ COPY package*.json ./
 RUN npm i
 COPY . ./
 EXPOSE 443
-ENTRYPOINT ["npx"]
-CMD ["nodemon", "src/server.ts"]
+ENTRYPOINT ["npm"]
+CMD ["run", "dev"]

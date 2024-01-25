@@ -1,0 +1,5 @@
+.git/
+certstore/
+node_modules/
+dist/
+build/
