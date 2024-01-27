@@ -1,7 +1,8 @@
 Command used for generating self-signed SSL certificates
 
 ```
-mkcert -install -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 0.0.0.0 ::1
+mkdir -p certstore
+mkcert -install -key-file certstore/key.pem -cert-file certstore/cert.pem localhost 127.0.0.1 0.0.0.0 ::1
 ```
 
 Command for building Dockerfile.dev

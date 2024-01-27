@@ -1,7 +1,7 @@
 FROM node:20.11.0
 ENV NODE_ENV development
+RUN mkdir -p /opt/app
 WORKDIR /opt/app
-RUN mkdir -p certstore
 COPY package*.json ./
 RUN npm install
 COPY . ./
