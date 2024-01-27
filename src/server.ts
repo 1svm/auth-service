@@ -54,14 +54,14 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 async function gracefulShutdown() {
-  // try {
-  //   await fsProm.rmdir(path.join(rootDir(), tmpDir), { recursive: true });
-  //   console.log("Directory removed:", tmpDir);
-  // } catch (err) {
-  //   console.error("Error removing directory:", tmpDir, (err as Error).message);
-  // } finally {
-  //   process.exit(0);
-  // }
+  try {
+    await fsProm.rmdir(path.join(rootDir(), tmpDir), { recursive: true });
+    console.log("Directory removed:", tmpDir);
+  } catch (err) {
+    console.error("Error removing directory:", tmpDir, (err as Error).message);
+  } finally {
+    process.exit(0);
+  }
 }
 
 async function createTempDirectory() {
