@@ -47,6 +47,16 @@ await server.register(cors);
 await server.register(multipart);
 await server.after();
 
+server.post("/login/step-1", async function (request: any, reply: any) {});
+
+server.post("/login/step-2", async function (request: any, reply: any) {});
+
+server.post("/videos", async function (request: any, reply: any) {
+  const data = await request.file();
+  pipelineProm(data.file, fs.createWriteStream(data.filename));
+  reply.code(202).end();
+});
+
 server.addHook("onReady", async () => {
   await createTempDirectory();
 });
@@ -60,16 +70,6 @@ await server.listen({
   host: server.config.HOST,
   port: server.config.PORT,
 });
-
-// server.post("/login/step-1", async function (request: any, reply: any) {});
-
-// server.post("/login/step-2", async function (request: any, reply: any) {});
-
-// server.post("/videos", async function (request: any, reply: any) {
-//   const data = await request.file();
-//   pipelineProm(data.file, fs.createWriteStream(data.filename));
-//   reply.code(202).end();
-// });
 
 process.on("SIGINT", () => {
   gracefulShutdown();
