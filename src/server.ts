@@ -5,33 +5,47 @@ import { pipeline as pipelineProm } from "node:stream/promises";
 
 import fastify from "fastify";
 import cors from "@fastify/cors";
+import fastifyEnv from "@fastify/env";
 import multipart from "@fastify/multipart";
 
-import { rootDir } from "./utils/fs.ts";
+const uploadDir = "tmp";
 
-const tmpDir = "tmp";
-const host = process.env.HOST ?? "0.0.0.0";
-const port = process.env.PORT ? parseInt(process.env.PORT) : 443;
-
-const server = fastify({
+const server = await fastify({
   logger: true,
   http2: true,
   https: {
-    key: fs.readFileSync(path.join(rootDir(), "certstore", "key.pem")),
-    cert: fs.readFileSync(path.join(rootDir(), "certstore", "cert.pem")),
+    key: fs.readFileSync(path.join(process.cwd(), "certstore", "key.pem")),
+    cert: fs.readFileSync(path.join(process.cwd(), "certstore", "cert.pem")),
   },
 });
 
+await server.register(fastifyEnv, {
+  dotenv: {
+    path: path.join(process.cwd(), ".env"),
+    encoding: "utf-8",
+    debug: true,
+  },
+  schema: {
+    type: "object",
+    required: ["HOST", "PORT", "SENDGRID_API_KEY"],
+    properties: {
+      HOST: {
+        type: "string",
+        default: "0.0.0.0",
+      },
+      PORT: {
+        type: "number",
+        default: 443,
+      },
+      SENDGRID_API_KEY: {
+        type: "string",
+      },
+    },
+  },
+});
 await server.register(cors);
 await server.register(multipart);
-
-server.post("/videos", async function (request: any, reply: any) {
-  const data = await request.file();
-  pipelineProm(data.file, fs.createWriteStream(data.filename, { flags: "a" }));
-  reply.code(200).send({});
-});
-
-server.listen({ host, port });
+await server.after();
 
 server.addHook("onReady", async () => {
   await createTempDirectory();
@@ -40,6 +54,22 @@ server.addHook("onReady", async () => {
 server.addHook("onClose", async () => {
   await gracefulShutdown();
 });
+
+await server.ready();
+await server.listen({
+  host: server.config.HOST,
+  port: server.config.PORT,
+});
+
+// server.post("/login/step-1", async function (request: any, reply: any) {});
+
+// server.post("/login/step-2", async function (request: any, reply: any) {});
+
+// server.post("/videos", async function (request: any, reply: any) {
+//   const data = await request.file();
+//   pipelineProm(data.file, fs.createWriteStream(data.filename));
+//   reply.code(202).end();
+// });
 
 process.on("SIGINT", () => {
   gracefulShutdown();
@@ -55,10 +85,16 @@ process.on("unhandledRejection", (reason, promise) => {
 
 async function gracefulShutdown() {
   try {
-    await fsProm.rmdir(path.join(rootDir(), tmpDir), { recursive: true });
-    console.log("Directory removed:", tmpDir);
+    await fsProm.rmdir(path.join(process.cwd(), uploadDir), {
+      recursive: true,
+    });
+    console.log("Directory removed:", uploadDir);
   } catch (err) {
-    console.error("Error removing directory:", tmpDir, (err as Error).message);
+    console.error(
+      "Error removing directory:",
+      uploadDir,
+      (err as Error).message
+    );
   } finally {
     process.exit(0);
   }
@@ -66,9 +102,23 @@ async function gracefulShutdown() {
 
 async function createTempDirectory() {
   try {
-    await fsProm.mkdir(path.join(rootDir(), tmpDir));
-    console.info("Directory created:", tmpDir);
+    await fsProm.mkdir(path.join(process.cwd(), uploadDir));
+    console.info("Directory created:", uploadDir);
   } catch (err) {
-    console.error("Error creating directory:", tmpDir, (err as Error).message);
+    console.error(
+      "Error creating directory:",
+      uploadDir,
+      (err as Error).message
+    );
+  }
+}
+
+declare module "fastify" {
+  interface FastifyInstance {
+    config: {
+      HOST: string;
+      PORT: number;
+      SENDGRID_API_KEY: string;
+    };
   }
 }
