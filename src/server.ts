@@ -7,6 +7,8 @@ import fastify from "fastify";
 import cors from "@fastify/cors";
 import fastifyEnv from "@fastify/env";
 import multipart from "@fastify/multipart";
+import mongodb from "@fastify/mongodb";
+import sgMail from "@sendgrid/mail";
 
 const uploadDir = "tmp";
 
@@ -14,6 +16,7 @@ const server = await fastify({
   logger: true,
   http2: true,
   https: {
+    allowHTTP1: process.env.NODE_ENV === "development",
     key: fs.readFileSync(path.join(process.cwd(), "certstore", "key.pem")),
     cert: fs.readFileSync(path.join(process.cwd(), "certstore", "cert.pem")),
   },
@@ -27,8 +30,12 @@ await server.register(fastifyEnv, {
   },
   schema: {
     type: "object",
-    required: ["HOST", "PORT", "SENDGRID_API_KEY"],
+    required: ["NODE_ENV", "HOST", "PORT", "SENDGRID_API_KEY"],
     properties: {
+      NODE_ENV: {
+        type: "string",
+        default: process.env.NODE_ENV,
+      },
       HOST: {
         type: "string",
         default: "0.0.0.0",
@@ -45,11 +52,28 @@ await server.register(fastifyEnv, {
 });
 await server.register(cors);
 await server.register(multipart);
+await server.register(mongodb, {
+  forceClose: true,
+  url: "mongodb://localhost:27017/app",
+});
 await server.after();
 
-server.post("/login/step-1", async function (request: any, reply: any) {});
+server.post("/login", async function (request: any, reply: any) {
+  const msg = {
+    to: "shivammalhotraone@gmail.com",
+    from: "hrxd@seomastergroup.com",
+    subject: "Twilio SendGrid testing",
+    text: "and easy to do anywhere, even with Node.js",
+  };
+  try {
+    const res = await sgMail.send(msg);
+    // console.log(res[0]);
+  } catch (error: any) {
+    console.error(error);
+  }
+});
 
-server.post("/login/step-2", async function (request: any, reply: any) {});
+server.post("/verify", async function (request: any, reply: any) {});
 
 server.post("/videos", async function (request: any, reply: any) {
   const data = await request.file();
@@ -58,6 +82,7 @@ server.post("/videos", async function (request: any, reply: any) {
 });
 
 server.addHook("onReady", async () => {
+  sgMail.setApiKey(server.config.SENDGRID_API_KEY);
   await createTempDirectory();
 });
 
@@ -116,9 +141,14 @@ async function createTempDirectory() {
 declare module "fastify" {
   interface FastifyInstance {
     config: {
+      NODE_ENV: string;
       HOST: string;
       PORT: number;
       SENDGRID_API_KEY: string;
     };
   }
+}
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }

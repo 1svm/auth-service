@@ -16,3 +16,9 @@ Command for running docker container
 ```
 docker run --rm -it -v $(pwd)/src:/opt/app/src -p 443:443 auth-service:0.0.1
 ```
+
+Run mongodb
+
+```
+mongod --port 27017 --dbpath $(pwd)/db
+```
