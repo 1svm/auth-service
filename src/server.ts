@@ -10,6 +10,8 @@ import multipart from "@fastify/multipart";
 import mongodb from "@fastify/mongodb";
 import sgMail from "@sendgrid/mail";
 
+import { generateOTP } from "./utilities/index.ts";
+
 const uploadDir = "tmp";
 
 const server = await fastify({
@@ -30,7 +32,7 @@ await server.register(fastifyEnv, {
   },
   schema: {
     type: "object",
-    required: ["NODE_ENV", "HOST", "PORT", "SENDGRID_API_KEY"],
+    required: ["NODE_ENV", "HOST", "PORT", "SENDGRID_API_KEY", "MONGODB_URI"],
     properties: {
       NODE_ENV: {
         type: "string",
@@ -44,6 +46,10 @@ await server.register(fastifyEnv, {
         type: "number",
         default: 443,
       },
+      MONGODB_URI: {
+        type: "string",
+        default: "mongodb://localhost:27017/app",
+      },
       SENDGRID_API_KEY: {
         type: "string",
       },
@@ -54,26 +60,50 @@ await server.register(cors);
 await server.register(multipart);
 await server.register(mongodb, {
   forceClose: true,
-  url: "mongodb://localhost:27017/app",
+  url: server.config.MONGODB_URI,
 });
 await server.after();
 
 server.post("/login", async function (request: any, reply: any) {
-  const msg = {
-    to: "shivammalhotraone@gmail.com",
-    from: "hrxd@seomastergroup.com",
-    subject: "Twilio SendGrid testing",
-    text: "and easy to do anywhere, even with Node.js",
-  };
+  const { email } = request.body;
+  const User = this.mongo.client.db("app").collection("users");
+  const otp = generateOTP();
+
   try {
-    const res = await sgMail.send(msg);
-    // console.log(res[0]);
+    const user = await User.findOneAndUpdate(
+      { email },
+      { $set: { login: { otp, at: new Date() } }, $setOnInsert: { email } },
+      { upsert: true }
+    );
+    sgMail.send({
+      to: email,
+      from: "hrxd@seomastergroup.com",
+      subject: `Login OTP ${otp}`,
+      text: "Please login with the OTP",
+    });
+    reply.code(202).send();
   } catch (error: any) {
     console.error(error);
   }
 });
 
-server.post("/verify", async function (request: any, reply: any) {});
+server.post("/verify", async function (request: any, reply: any) {
+  const { email, otp } = request.body;
+  const User = this.mongo.client.db("app").collection("users");
+
+  try {
+    const user = await User.findOne({ email });
+    if (user?.login?.otp === otp) {
+      reply.code(202).send();
+    } else {
+      reply.code(401).send();
+    }
+  } catch (error: any) {
+    console.error(error);
+  }
+});
+
+server.post("/logout", async function (request: any, reply: any) {});
 
 server.post("/videos", async function (request: any, reply: any) {
   const data = await request.file();
@@ -145,10 +175,7 @@ declare module "fastify" {
       HOST: string;
       PORT: number;
       SENDGRID_API_KEY: string;
+      MONGODB_URI: string;
     };
   }
-}
-
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
 }
